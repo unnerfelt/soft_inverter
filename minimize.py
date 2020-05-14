@@ -20,13 +20,20 @@ frames, times, tfilter, filter_dark, images = load_image(args.image, args.frames
 def fitness(C_space, green, images, theta_grid):
     n_p = green.shape[1]
     result = np.zeros((len(C_space), n_p))
+    count = 0
     for p_idx in range(n_p):
         for idx, C in enumerate(C_space):
             mat = create_matrix(p_idx, C, green, theta_grid)
             total_res = 0
             for image in images:
-                x, res, _, _ = np.linalg.lstsq(mat, np.ndarray.flatten(image), rcond=None)
-                total_res += res
+                count += 1
+                flat_image = np.ndarray.flatten(image)
+                x, res, _, _ = np.linalg.lstsq(mat, flat_image, rcond=1e-4)
+                b = mat.dot(x)
+                msq = np.sum((flat_image - b) ** 2)
+                # total_res += res
+                total_res += msq
+
 
             result[idx, p_idx] = total_res
     return result
@@ -38,7 +45,10 @@ C_space = np.logspace(np.log10(1), np.log10(400), 100)
 # Iterate through green's functions.
 results = []
 p_space = []
+count = 0
 for green_path in args.greens:
+    print("Progress: {}%".format(count / len(args.greens) * 100))
+    count += 1
     with h5py.File(green_path, 'r') as f:
         func = f['func'][:]
         theta_grid = f['param2'][:]
